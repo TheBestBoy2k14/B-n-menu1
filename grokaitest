@@ -1,0 +1,125 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Grok Cheat - Fix Fly",
+    LoadingTitle = "Loading cho Quốc...",
+    LoadingSubtitle = "by Grok",
+    Icon = "rocket",
+    Theme = "Default",
+    ConfigurationSaving = {Enabled = true, FolderName = "GrokCheats", FileName = "FixFly"}
+})
+
+local Tab = Window:CreateTab("Cheats", 4483362458)
+local player = game.Players.LocalPlayer
+local FlyEnabled, FlySpeed = false, 50
+local FlyVel, FlyGyro, FlyConn = nil, nil, nil
+
+-- Fly đã fix (LinearVelocity + BodyGyro)
+local function ToggleFly(state)
+    FlyEnabled = state
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    if state then
+        FlyGyro = Instance.new("BodyGyro", root) FlyGyro.P = 9e4 FlyGyro.MaxTorque = Vector3.new(9e9,9e9,9e9)
+        FlyVel = Instance.new("LinearVelocity", root) FlyVel.Attachment0 = Instance.new("Attachment", root) FlyVel.MaxForce = 9e9
+
+        FlyConn = game:GetService("RunService").RenderStepped:Connect(function()
+            if not FlyEnabled then return end
+            local cam, uis = workspace.CurrentCamera, game:GetService("UserInputService")
+            local dir = Vector3.new()
+            if uis:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+            if uis:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+            if uis:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+            if uis:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+            if uis:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+            if uis:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.new(0,1,0) end
+
+            FlyGyro.CFrame = cam.CFrame
+            FlyVel.VectorVelocity = dir.Unit * FlySpeed
+        end)
+    else
+        if FlyConn then FlyConn:Disconnect() end
+        if FlyVel then FlyVel:Destroy() end
+        if FlyGyro then FlyGyro:Destroy() end
+    end
+end
+
+-- Noclip
+local function ToggleNoclip(state)
+    if state then
+        game:GetService("RunService").Stepped:Connect(function()
+            for _,v in pairs(player.Character:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = false end
+            end
+        end)
+    end
+end
+
+-- ESP
+local function ToggleESP(state)
+    if state then
+        for _,p in pairs(game.Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
+                local h = Instance.new("Highlight", p.Character)
+                h.FillColor = Color3.new(1,0,0) h.OutlineColor = Color3.new(1,1,1) h.FillTransparency = 0.5
+            end
+        end
+    else
+        for _,p in pairs(game.Players:GetPlayers()) do
+            if p.Character then for _,o in pairs(p.Character:GetChildren()) do if o:IsA("Highlight") then o:Destroy() end end end
+        end
+    end
+end
+
+-- Aimbot
+local function ToggleAimbot(state)
+    if state then
+        game:GetService("RunService").RenderStepped:Connect(function()
+            if not state then return end
+            local cam, closest, dist = workspace.CurrentCamera, nil, 120
+            local center = cam.ViewportSize/2
+            for _,p in pairs(game.Players:GetPlayers()) do
+                if p ~= player and p.Character and p.Character:FindFirstChild("Head") then
+                    local pos, on = cam:WorldToViewportPoint(p.Character.Head.Position)
+                    if on then local d = (Vector2.new(pos.X,pos.Y)-center).Magnitude if d < dist then dist=d closest=p.Character.Head end end
+                end
+            end
+            if closest then cam.CFrame = CFrame.lookAt(cam.CFrame.Position, closest.Position) end
+        end)
+    end
+end
+
+-- Admin Commands
+game.Players.LocalPlayer.Chatted:Connect(function(msg)
+    local args = msg:split(" ")
+    local cmd = args[1]:lower():sub(2)
+    local target = game.Players:FindFirstChild(args[2]) or player
+    if cmd == "kill" and target.Character and target.Character:FindFirstChild("Humanoid") then target.Character.Humanoid.Health = 0
+    elseif cmd == "tp" and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame
+    elseif cmd == "bring" and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then target.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0,0,5)
+    elseif cmd == "god" and target.Character and target.Character:FindFirstChild("Humanoid") then target.Character.Humanoid.MaxHealth = 9e9 target.Character.Humanoid.Health = 9e9
+    elseif cmd == "speed" and target.Character and target.Character:FindFirstChild("Humanoid") and args[3] then target.Character.Humanoid.WalkSpeed = tonumber(args[3]) end
+end)
+
+-- UI
+Tab:CreateSection("Movement")
+Tab:CreateToggle({Name = "Fly (ĐÃ FIX)", CurrentValue = false, Callback = ToggleFly})
+Tab:CreateSlider({Name = "Fly Speed", Range = {10, 300}, Increment = 5, CurrentValue = 50, Callback = function(v) FlySpeed = v end})
+Tab:CreateToggle({Name = "Noclip", CurrentValue = false, Callback = ToggleNoclip})
+Tab:CreateSlider({Name = "WalkSpeed", Range = {16, 500}, Increment = 1, CurrentValue = 16, Callback = function(v)
+    if player.Character and player.Character:FindFirstChild("Humanoid") then player.Character.Humanoid.WalkSpeed = v end
+end})
+
+Tab:CreateSection("Visual + Combat")
+Tab:CreateToggle({Name = "ESP", CurrentValue = false, Callback = ToggleESP})
+Tab:CreateToggle({Name = "Aimbot", CurrentValue = false, Callback = ToggleAimbot})
+
+Tab:CreateSection("Extras")
+Tab:CreateButton({Name = "Infinite Jump", Callback = function()
+    game:GetService("UserInputService").JumpRequest:Connect(function()
+        if player.Character and player.Character:FindFirstChild("Humanoid") then player.Character.Humanoid:ChangeState("Jumping") end
+    end)
+end})
+
+Rayfield:Notify({Title = "✅ Loaded!", Content = "Fly đã fix - Nhấn K mở menu\nLệnh chat: /kill me | /tp tên | /bring tên | /god | /speed 100", Duration = 8})
